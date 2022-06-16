@@ -60,7 +60,7 @@ def _run_transaction(transaction):
     conn = psycopg2.connect(db_conn_string)
     try:
         cur = conn.cursor(cursor_factory=extras.DictCursor)
-        cur.execute("SET SEARCH_PATH TO token_server")
+        cur.execute("SET SEARCH_PATH TO session_storage")
         result=transaction(cur)
         conn.commit()
     finally:

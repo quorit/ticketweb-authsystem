@@ -14,7 +14,7 @@ else:
 
 
 def _get_db_conn_string():
-    secret_file = os.path.join(_etc_path,"ticketweb","token-server","db-conn-string")
+    secret_file = os.path.join(_etc_path,"ticketweb","authsystem","db-conn-string")
     f = open(secret_file,"r")
     secret_data = f.read()
     f.close()
@@ -25,7 +25,7 @@ db_conn_string = _get_db_conn_string()
 
 
 def _get_config_data():
-    config_file = os.path.join(_etc_path,"ticketweb","token-server","config-data.json")
+    config_file = os.path.join(_etc_path,"ticketweb","authsystem","config-data.json")
     f = open(config_file,"r")
     config_data = json.load(f)
     f.close()
@@ -36,7 +36,7 @@ _config_data = _get_config_data()
 applications = _config_data["applications"]
 
 def _init_rsa_key_data():
-    rsa_path = os.path.join(_etc_path,"ticketweb","token-server","rsa")
+    rsa_path = os.path.join(_etc_path,"ticketweb","authsystem","rsa")
     # I need to generate a table of of pairs.
     # first member of each pair is priv key, that i can use to encode with
     # second member is a serilisation of a public key that I can export through the web api
@@ -86,5 +86,3 @@ def _get_pw():
     return secret_data[ldap_data["service_account"]]
 
 service_account_pw = _get_pw()
-
-print ("this really happened No!")

@@ -1,0 +1,68 @@
+#!/bin/bash
+
+#default values
+devel_mode=0
+venv_id=unset
+ticketweb_venv_root=unset
+
+
+usage()
+{
+  echo "Usage 1: ticketweb-authsystem-server --devel-mode <ticketweb_venv_root>"
+  echo "Usage 2: ticketweb-authsystem-server <ticketweb_venv_id>"
+  exit 2
+}
+
+
+PARSED_ARGUMENTS=$(getopt --name ticketweb-authsystem-server -o d --long devel-mode -- "$@")
+echo "PARSED_ARGUMENTS IS $PARSED_ARGUMENTS"
+
+VALID_ARGUMENTS=$?
+if [ "$VALID_ARGUMENTS" != "0" ]; then
+  usage
+fi
+
+
+eval set -- "$PARSED_ARGUMENTS"
+while :
+do
+  case "$1" in
+    --devel-mode)   devel_mode=1      ; shift   ;;
+    # -- means the end of the arguments; drop this, and break out of the while loop
+    --) shift; break ;;
+    # If invalid options were passed, then getopt should have reported an error,
+    # which we checked as VALID_ARGUMENTS when getopt was called...
+    *) echo "Unexpected option: $1 - this should not happen."
+       usage ;;
+  esac
+done
+
+
+if [[ -z $1 ]]; then
+    usage
+fi
+
+
+
+if [[ "$devel_mode" -eq 0 ]]; then
+    venv_id=$1
+    venv_roots_file=/etc/ticketweb_venv_roots.json
+    ticketweb_venv_root=$(cat "$venv_roots_file" | jq ."$venv_id" | tr -d '"')
+else
+    ticketweb_venv_root=$1
+fi
+
+
+gunicorn_bind=$(cat $ticketweb_venv_root/etc/ticketweb/authsystem/config-data.json | jq .bind | tr -d '"')
+source "$ticketweb_venv_root/bin/activate"
+
+if [[ "$devel_mode" -eq 1 ]]; then
+     gunicorn --log-level debug --reload --bind $gunicorn_bind ticketweb_authsystem_server.app:main\(\)
+else
+     gunicorn --bind $gunicorn_bind \
+         --access-logfile=/var/log/ticketweb/$1/authsystem/server-access.log \
+         --error-logfile=/var/log/ticketweb/$1/authsystem/server-error.log \
+         --pid /run/ticketweb/$1/authsystem/server.pid ticketweb_authsystem_server.app:main\(\)
+fi
+
+

@@ -1,0 +1,21 @@
+#!/bin/bash
+
+
+ticketweb_devel_root=$1
+
+
+
+ticketweb_venv_root=$ticketweb_devel_root/python_venv
+
+
+while :
+do
+   sleep_interval=$(cat $ticketweb_devel_root/devel-config.json | jq .prunesessions_interval_mins | tr -d '"')
+   echo "Devel mode sessions pruning job. Press [CTRL+C] to stop..."
+   $HOME/.local/libexec/ticketweb-authsystem-prunesessions --devel-mode $ticketweb_venv_root
+   echo "Expired sessions have been pruned. Sleeping for $sleep_interval minutes."
+   sleep "$sleep_interval"m
+done
+
+
+

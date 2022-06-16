@@ -1,0 +1,26 @@
+# This service unit is for pruning expired sessions from the token server db
+# By Michael Walton
+# Licensed under GPL V2
+#
+
+[Unit]
+Description=Logs system statistics to the systemd journal
+Wants=prune-sessions@%i.timer
+
+
+
+[Service]
+
+
+
+User=ticketweb_%i_authsystem
+Group=ticketweb_%i_authsystem
+
+
+
+
+Type=oneshot
+ExecStart=/usr/local/libexec/ticketweb-authsystem-prunesessions %i
+
+[Install]
+WantedBy=multi-user.target

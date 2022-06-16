@@ -1,0 +1,15 @@
+# This timer prunes sessinos from the token server db
+# By David Both
+# Licensed under GPL V2
+#
+
+[Unit]
+Description=Logs some system statistics to the systemd journal
+Requires=ticketweb-authsystem-prunesessions@%i.service
+
+[Timer]
+Unit=ticketweb-authsystem-prunesessions@%i.service
+OnUnitActiveSec=1hour
+
+[Install]
+WantedBy=timers.target

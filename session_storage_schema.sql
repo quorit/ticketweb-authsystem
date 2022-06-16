@@ -17,58 +17,58 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: token_server; Type: SCHEMA; Schema: -; Owner: postgres
+-- Name: session_storage; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
-CREATE SCHEMA token_server;
+CREATE SCHEMA session_storage;
 
 
-ALTER SCHEMA token_server OWNER TO postgres;
+ALTER SCHEMA session_storage OWNER TO postgres;
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- Name: sessions; Type: TABLE; Schema: token_server; Owner: postgres
+-- Name: sessions; Type: TABLE; Schema: session_storage; Owner: postgres
 --
 
-CREATE TABLE token_server.sessions (
+CREATE TABLE session_storage.sessions (
     session_id character varying(100) NOT NULL,
     user_dn character varying(200) NOT NULL,
     expired timestamp without time zone NOT NULL
 );
 
 
-ALTER TABLE token_server.sessions OWNER TO postgres;
+ALTER TABLE session_storage.sessions OWNER TO postgres;
 
 --
--- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: token_server; Owner: postgres
+-- Name: sessions sessions_pkey; Type: CONSTRAINT; Schema: session_storage; Owner: postgres
 --
 
-ALTER TABLE ONLY token_server.sessions
+ALTER TABLE ONLY session_storage.sessions
     ADD CONSTRAINT sessions_pkey PRIMARY KEY (session_id);
 
 
 --
--- Name: expired_idx; Type: INDEX; Schema: token_server; Owner: postgres
+-- Name: expired_idx; Type: INDEX; Schema: session_storage; Owner: postgres
 --
 
-CREATE INDEX expired_idx ON token_server.sessions USING btree (expired);
-
-
---
--- Name: SCHEMA token_server; Type: ACL; Schema: -; Owner: postgres
---
-
-GRANT USAGE ON SCHEMA token_server TO tokenserver;
+CREATE INDEX expired_idx ON session_storage.sessions USING btree (expired);
 
 
 --
--- Name: TABLE sessions; Type: ACL; Schema: token_server; Owner: postgres
+-- Name: SCHEMA session_storage; Type: ACL; Schema: -; Owner: postgres
 --
 
-GRANT ALL ON TABLE token_server.sessions TO tokenserver;
+GRANT USAGE ON SCHEMA session_storage TO ticketweb_authsystem;
+
+
+--
+-- Name: TABLE sessions; Type: ACL; Schema: session_storage; Owner: postgres
+--
+
+GRANT ALL ON TABLE session_storage.sessions TO ticketweb_authsystem;
 
 
 --
