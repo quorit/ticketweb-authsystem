@@ -52,7 +52,7 @@ if [[ "$devel_mode" -eq 0 ]]; then
     git clone https://github.com/quorit/ticketweb-base.git
     git_repo_dir="$temp_dir"/ticketweb-base
     db_file="$git_repo_dir"/authsystem/session_storage_schema.sql
-    chmod --recursive a+rx $temp_dir
+    chmod --recursive a+rX $temp_dir
 else
     git_repo_dir="$2"
     db_file=$(mktemp -t session_storage_schema.sql.XXXXXXXXXX)
