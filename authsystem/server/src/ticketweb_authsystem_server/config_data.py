@@ -13,19 +13,9 @@ else:
 
 
 
-def _get_db_conn_string():
-    secret_file = os.path.join(_etc_path,"ticketweb","authsystem","db-conn-string")
-    f = open(secret_file,"r")
-    secret_data = f.read()
-    f.close()
-    return secret_data.strip()
-
-
-db_conn_string = _get_db_conn_string()
-
 
 def _get_config_data():
-    config_file = os.path.join(_etc_path,"ticketweb","authsystem","config-data.json")
+    config_file = os.path.join(_etc_path,"ticketweb","authsystem","config.json")
     f = open(config_file,"r")
     config_data = json.load(f)
     f.close()
@@ -33,7 +23,18 @@ def _get_config_data():
 
 _config_data = _get_config_data()
 
-applications = _config_data["applications"]
+
+
+
+def _get_applications():
+    apps_file = os.path.join(_etc_path,"ticketweb","authsystem","applications.json")
+    f = open(apps_file,"r")
+    apps_data = json.load(f)
+    f.close()
+    return apps_data["application_set"]
+
+applications = _get_applications()
+
 
 def _init_rsa_key_data():
     rsa_path = os.path.join(_etc_path,"ticketweb","authsystem","rsa")
@@ -78,11 +79,19 @@ session_length = _config_data["session_length_mins"]
 
 
 def _get_pw():
+    password_exec = _config_data["ldap"]["password_exec"]
+    pw = os.popen(password_exec).read()
+    return pw
 
-    secret_file = os.path.join(_etc_path,"service_creds.json")
-    f = open(secret_file,"r")
-    secret_data = json.load(f)
-    f.close()
-    return secret_data[ldap_data["service_account"]]
 
 service_account_pw = _get_pw()
+
+print (service_account_pw+"yeah")
+
+def _get_db_conn_string():
+    db_conn_string_exec = _config_data["db_conn_string_exec"]
+    db_conn_string = os.popen(db_conn_string_exec).read()
+    return db_conn_string
+
+
+db_conn_string = _get_db_conn_string()

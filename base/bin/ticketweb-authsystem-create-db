@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# default values
+devel_mode=0
+
+
+usage()
+{
+  echo "Usage 1: ticketweb-authsystem-create-db --devel-mode <db_name> <git_dir>"
+  echo "Usage 2: ticketweb-authsystem-create-db <db_name>"
+  exit 2
+}
+
+
+PARSED_ARGUMENTS=$(getopt --name ticketweb-authsystem-create-db -o d --long devel-mode -- "$@")
+
+VALID_ARGUMENTS=$?
+if [ "$VALID_ARGUMENTS" != "0" ]; then
+  usage
+fi
+
+
+eval set -- "$PARSED_ARGUMENTS"
+while :
+do
+  case "$1" in
+    --devel-mode)   devel_mode=1      ; shift   ;;
+    # -- means the end of the arguments; drop this, and break out of the while loop
+    --) shift; break ;;
+    # If invalid options were passed, then getopt should have reported an error,
+    # which we checked as VALID_ARGUMENTS when getopt was called...
+    *) echo "Unexpected option: $1 - this should not happen."
+       usage ;;
+  esac
+done
+
+if (( "$devel_mode" == 1 && $# != 2 || "$devel_mode" == 0 && $# != 1 )); then
+    usage
+fi
+
+cd /tmp
+
+sudo -u postgres createuser ticketweb_authsystem || echo "ticketweb_authsystem db role already exists"
+
+db_name="$1"
+
+sudo -u postgres createdb "$db_name" || echo "db $db_name already exists"
+
+if [[ "$devel_mode" -eq 0 ]]; then
+    git_repo_dir=$(mkdtemp -d)
+    cd $git_repo_dir
+    git clone https://github.com/quorit/ticketweb-base.git
+    db_file="$git_repo_dir"/authsystem/session_storage_schema.sql
+    chmod --recursive a+rx $git_repo_dir
+else
+    git_repo_dir="$2"
+    db_file=$(mktemp -t session_storage_schema.sql.XXXXXXXXXX)
+    cat "$git_repo_dir"/authsystem/session_storage_schema.sql > "$db_file"
+    chmod a+r "$db_file"
+fi
+
+
+
+sudo -u postgres psql -d $db_name -f "$db_file"
+
+

@@ -1,0 +1,96 @@
+#!/bin/bash
+
+#default values
+devel_mode=0
+venv_id=unset
+ticketweb_venv_root=unset
+
+
+usage()
+{
+  echo "Usage 1: ticketweb-venv-create --devel-mode <venv_root> <git_repo_dir>"
+  echo "Usage 2: ticketweb-venv-create <venv_id> <venv_root>"
+  exit 2
+}
+
+
+PARSED_ARGUMENTS=$(getopt --name ticketweb-venv-create -o d --long devel-mode -- "$@")
+
+VALID_ARGUMENTS=$?
+if [ "$VALID_ARGUMENTS" != "0" ]; then
+  usage
+fi
+
+
+eval set -- "$PARSED_ARGUMENTS"
+while :
+do
+  case "$1" in
+    --devel-mode)   devel_mode=1      ; shift   ;;
+    # -- means the end of the arguments; drop this, and break out of the while loop
+    --) shift; break ;;
+    # If invalid options were passed, then getopt should have reported an error,
+    # which we checked as VALID_ARGUMENTS when getopt was called...
+    *) echo "Unexpected option: $1 - this should not happen."
+       usage ;;
+  esac
+done
+
+
+if (( "$devel_mode" == 0 && "$#" != 2 || "$devel_mode" == 1 && "$#" != 2 )); then
+    usage
+fi
+
+
+
+
+
+if [[ "$devel_mode" -eq 0 ]]; then
+    venv_id=$1
+    ticketweb_venv_root="$2"
+    venv_roots_file=/etc/ticketweb_venv_roots.json
+    tmpfile=$(mktemp -t ticketweb_venv_roots.json.tmp.XXXXXXXXXX)
+    cat $venv_roots_file > $tmpfile
+    cat $tmpfile | jq ".\"$1\" = \"$2\"" > $venv_roots_file
+
+    rm $tmpfile
+else
+    ticketweb_venv_root=$1
+fi
+
+# create the venv
+
+cd "$ticketweb_venv_root"
+
+python -m venv .
+
+
+mkdir --parents ./etc/ticketweb
+mkdir --parents ./etc/ticketweb/applications
+mkdir --parents --mode=770 ./etc/ticketweb/authsystem/rsa
+mkdir --parents ./srv/ticketweb/applications
+mkdir --parents ./usr/share/ticketweb/applications
+
+if [[ "$devel_mode" -eq 0 ]]; then
+   new_user_id=ticketweb_"$venv_id"_authsystem
+   useradd --system --no-create-home $new_user_id
+   chown $new_user_id:$new_user_id ./etc/ticketweb/authsystem/rsa
+fi
+
+echo '{ "application_set": [] }' > ./etc/ticketweb/authsystem/applications.json
+
+source ./bin/activate
+
+if [[ "$devel_mode" -eq 0 ]]; then
+    # https://github.com/quorit/ticketweb-base.git#subdirectory=server
+    pip install --force-reinstall "git+https://github.com/quorit/ticketweb-base.git#subdirectory=server"
+else
+    git_repo_dir="$2"
+    cd "$git_repo_dir/server"
+    echo $(pwd)
+    pip install --editable .
+fi
+
+
+
+

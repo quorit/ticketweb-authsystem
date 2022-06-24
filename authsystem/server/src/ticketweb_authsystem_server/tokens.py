@@ -108,6 +108,9 @@ class AuthHandlerSession ():
         ldap_handle  = ldap.initialize(url)
         service_account_dn = ldap_data["dn"]
         search_base=ldap_data["search_base"]
+        print(service_account_dn)
+        print(service_account_pw)
+
         ldap_handle.simple_bind_s(service_account_dn,service_account_pw)
         ldap_handle.set_option(ldap.OPT_REFERRALS, 0)
         ldap_search_result = ldap_handle.search_s(search_base,ldap.SCOPE_SUBTREE,"(sAMAccountName={0})".format(userid),["dn"])

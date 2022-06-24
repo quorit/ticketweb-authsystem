@@ -55,5 +55,9 @@ fi
 
 
 source $ticketweb_venv_root/bin/activate
+
+
 python -c "from ticketweb_authsystem_server import sessions; sessions.prune_old_sessions()"
+
+
 

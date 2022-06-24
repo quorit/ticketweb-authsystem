@@ -47,13 +47,13 @@ fi
 if [[ "$devel_mode" -eq 0 ]]; then
     venv_id=$1
     venv_roots_file=/etc/ticketweb_venv_roots.json
-    ticketweb_venv_root=$(cat "$venv_roots_file" | jq ."$venv_id" | tr -d '"')
+    ticketweb_venv_root=$(cat "$venv_roots_file" | jq ."$venv_id" | sed -e 's/^"//' -e 's/"$//' )
 else
     ticketweb_venv_root=$1
 fi
 
 
-gunicorn_bind=$(cat $ticketweb_venv_root/etc/ticketweb/authsystem/config-data.json | jq .bind | tr -d '"')
+gunicorn_bind=$(cat $ticketweb_venv_root/etc/ticketweb/authsystem/config.json | jq .bind | tr -d '"')
 source "$ticketweb_venv_root/bin/activate"
 
 if [[ "$devel_mode" -eq 1 ]]; then

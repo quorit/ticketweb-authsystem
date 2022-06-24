@@ -1,0 +1,73 @@
+#!/bin/bash
+
+#default values
+devel_mode=0
+venv_id=unset
+ticketweb_venv_root=unset
+
+
+usage()
+{
+  echo "Usage 1: ticketweb-authsystem-add-app --devel-mode <venv_root> <app_name>"
+  echo "Usage 2: ticketweb-authsystem-add-app <venv_id> <app_name>"
+  exit 2
+}
+
+
+PARSED_ARGUMENTS=$(getopt --name ticketweb-authsystem-add-app -o d --long devel-mode -- "$@")
+
+VALID_ARGUMENTS=$?
+if [ "$VALID_ARGUMENTS" != "0" ]; then
+  usage
+fi
+
+
+eval set -- "$PARSED_ARGUMENTS"
+while :
+do
+  case "$1" in
+    --devel-mode)   devel_mode=1      ; shift   ;;
+    # -- means the end of the arguments; drop this, and break out of the while loop
+    --) shift; break ;;
+    # If invalid options were passed, then getopt should have reported an error,
+    # which we checked as VALID_ARGUMENTS when getopt was called...
+    *) echo "Unexpected option: $1 - this should not happen."
+       usage ;;
+  esac
+done
+
+
+if (( "$#" != 2 )); then
+    usage
+fi
+
+
+
+
+
+if [[ "$devel_mode" -eq 0 ]]; then
+    venv_id="$1"
+    venv_roots_file=/etc/ticketweb_venv_roots.json
+    ticketweb_venv_root=$(cat "$venv_roots_file" | jq ."$venv_id" | sed -e 's/^"//' -e 's/"$//' )
+else
+    ticketweb_venv_root="$1"
+fi
+
+app_name="$2"
+
+apps_file="$ticketweb_venv_root"/etc/ticketweb/authsystem/applications.json
+tmpfile=$(mktemp -t applications.json.tmp.XXXXXXXXXX)
+    
+cat "$apps_file" > "$tmpfile"
+cat "$tmpfile" | jq ".\"application_set\" |= (.+ [\"$app_name\"] | unique)" > "$apps_file"
+
+rm "$tmpfile"
+
+openssl genrsa -out "$ticketweb_venv_root"/etc/ticketweb/authsystem/rsa/"$app_name".pem 2048
+
+
+if [[ "$devel_mode" -eq 0 ]]; then
+   user_id=ticketweb_"$venv_id"_authsystem
+   chown $new_user_id:$new_user_id ./etc/ticketweb/authsystem/rsa
+fi
+
