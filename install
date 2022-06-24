@@ -46,7 +46,10 @@ if [[ "$devel_mode" -eq 0 ]]; then
     cp "$script_dir"/base/bin/* /usr/local/bin
     cp "$script_dir"/base/libexec/* /usr/local/libexec
     shopt -s extglob # see https://unix.stackexchange.com/questions/41693/how-to-copy-some-but-not-all-files
-    cp "$script_dir"/base/systemd-unit-files/!\(*.d\) /etc/systemd/system
+    eval '
+       # evaluation of this code is deferred otherwise shopt wont work for us
+       cp "$script_dir"/base/systemd-unit-files/!(*.d) /etc/systemd/system
+    '
     shopt -u extglob
 else
     mkdir --parent "$HOME"/.local/bin

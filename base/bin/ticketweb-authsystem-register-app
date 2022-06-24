@@ -63,11 +63,13 @@ cat "$tmpfile" | jq ".\"application_set\" |= (.+ [\"$app_name\"] | unique)" > "$
 
 rm "$tmpfile"
 
-openssl genrsa -out "$ticketweb_venv_root"/etc/ticketweb/authsystem/rsa/"$app_name".pem 2048
+pem_file="$ticketweb_venv_root"/etc/ticketweb/authsystem/rsa/"$app_name".pem
+
+openssl genrsa -out "$pem_file" 2048
 
 
 if [[ "$devel_mode" -eq 0 ]]; then
    user_id=ticketweb_"$venv_id"_authsystem
-   chown $new_user_id:$new_user_id ./etc/ticketweb/authsystem/rsa
+   chown $user_id:$user_id "$pem_file"
 fi
 

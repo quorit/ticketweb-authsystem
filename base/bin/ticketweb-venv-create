@@ -83,10 +83,10 @@ source ./bin/activate
 
 if [[ "$devel_mode" -eq 0 ]]; then
     # https://github.com/quorit/ticketweb-base.git#subdirectory=server
-    pip install --force-reinstall "git+https://github.com/quorit/ticketweb-base.git#subdirectory=server"
+    pip install --force-reinstall "git+https://github.com/quorit/ticketweb-base.git#subdirectory=authsystem/server"
 else
     git_repo_dir="$2"
-    cd "$git_repo_dir/server"
+    cd "$git_repo_dir/authsystem/server"
     echo $(pwd)
     pip install --editable .
 fi
