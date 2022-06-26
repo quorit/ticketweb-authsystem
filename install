@@ -51,14 +51,14 @@ if [[ "$devel_mode" -eq 0 ]]; then
        cp "$script_dir"/base/systemd-unit-files/!(*.d) /etc/systemd/system
     '
     shopt -u extglob
-    mkdir --parents /usr/share/ticketweb/authsystem
-    cp "$script_dir"/authsystem/session_storage_schema.sql /usr/share/ticketweb/authsystem
+    mkdir --parents /usr/local/share/ticketweb/authsystem
+    cp "$script_dir"/authsystem/session_storage_schema.sql /usr/local/share/ticketweb/authsystem
 else
-    mkdir --parent "$HOME"/.local/bin
-    mkdir --parent "$HOME"/.local/libexec
+    mkdir --parents "$HOME"/.local/bin
+    mkdir --parents "$HOME"/.local/libexec
     ln --symbolic --force "$script_dir"/base/bin/* "$HOME"/.local/bin
     ln --symbolic --force "$script_dir"/base/libexec/* "$HOME"/.local/libexec
-    mkdir --parent "$HOME"/.config/systemd/user
+    mkdir --parents "$HOME"/.config/systemd/user
     ln --symbolic --force "$script_dir"/base/systemd-unit-files/ticketweb-authsystem-prunesessions@.* "$HOME"/.config/systemd/user
 fi
 
