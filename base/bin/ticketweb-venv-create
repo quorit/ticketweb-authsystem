@@ -41,26 +41,40 @@ if (( "$devel_mode" == 0 && "$#" != 2 || "$devel_mode" == 1 && "$#" != 2 )); the
     usage
 fi
 
+if [[ "$devel_mode" -eq 0 ]]; then
+    ticketweb_venv_root="$2"
+else
+    ticketweb_venv_root=$1
+fi
+
+
+
+
+if [ ! -d "$ticketweb_venv_root" ]; then
+  echo $ticketweb_venv_root does not exist or is not a directory.
+  exit 1
+fi
+
 
 
 
 
 if [[ "$devel_mode" -eq 0 ]]; then
     venv_id=$1
-    ticketweb_venv_root="$2"
     venv_roots_file=/etc/ticketweb_venv_roots.json
     tmpfile=$(mktemp -t ticketweb_venv_roots.json.tmp.XXXXXXXXXX)
     cat $venv_roots_file > $tmpfile
     cat $tmpfile | jq ".\"$1\" = \"$2\"" > $venv_roots_file
 
     rm $tmpfile
-else
-    ticketweb_venv_root=$1
 fi
 
 # create the venv
 
 cd "$ticketweb_venv_root"
+
+
+
 
 python -m venv .
 
