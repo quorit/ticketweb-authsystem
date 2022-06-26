@@ -75,6 +75,8 @@ if [[ "$devel_mode" -eq 0 ]]; then
    new_user_id=ticketweb_"$venv_id"_authsystem
    useradd --system --no-create-home $new_user_id
    chown $new_user_id:$new_user_id ./etc/ticketweb/authsystem/rsa
+   mkdir --parents --mode=770 /var/log/ticketweb/"$venv_id"/authsystem
+   chown $new_user_id:$new_user_id /var/log/ticketweb/"$venv_id"/authsystem
 fi
 
 echo '{ "application_set": [] }' > ./etc/ticketweb/authsystem/applications.json

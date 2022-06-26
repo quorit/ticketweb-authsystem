@@ -47,12 +47,7 @@ db_name="$1"
 sudo -u postgres createdb "$db_name" || echo "db $db_name already exists"
 
 if [[ "$devel_mode" -eq 0 ]]; then
-    temp_dir=$(mktemp -d)
-    cd "$temp_dir"
-    git clone https://github.com/quorit/ticketweb-base.git
-    git_repo_dir="$temp_dir"/ticketweb-base
-    db_file="$git_repo_dir"/authsystem/session_storage_schema.sql
-    chmod --recursive a+rX $temp_dir
+    db_file=/usr/share/ticketweb/authsystem/session_storage_schema.sql
 else
     git_repo_dir="$2"
     db_file=$(mktemp -t session_storage_schema.sql.XXXXXXXXXX)
