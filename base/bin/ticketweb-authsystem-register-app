@@ -8,13 +8,13 @@ ticketweb_venv_root=unset
 
 usage()
 {
-  echo "Usage 1: ticketweb-authsystem-add-app --devel-mode <venv_root> <app_name>"
-  echo "Usage 2: ticketweb-authsystem-add-app <venv_id> <app_name>"
+  echo "Usage 1: ticketweb-authsystem-register-app --devel-mode <venv_root> <app_name>"
+  echo "Usage 2: ticketweb-authsystem-register-app <venv_root> <app_name>"
   exit 2
 }
 
 
-PARSED_ARGUMENTS=$(getopt --name ticketweb-authsystem-add-app -o d --long devel-mode -- "$@")
+PARSED_ARGUMENTS=$(getopt --name ticketweb-authsystem-register-app -o d --long devel-mode -- "$@")
 
 VALID_ARGUMENTS=$?
 if [ "$VALID_ARGUMENTS" != "0" ]; then
