@@ -41,17 +41,8 @@ if (( "$#" != 2 )); then
     usage
 fi
 
+ticketweb_venv_root="$1"
 
-
-
-
-if [[ "$devel_mode" -eq 0 ]]; then
-    venv_id="$1"
-    venv_roots_file=/etc/ticketweb_venv_roots.json
-    ticketweb_venv_root=$(cat "$venv_roots_file" | jq ."$venv_id" | sed -e 's/^"//' -e 's/"$//' )
-else
-    ticketweb_venv_root="$1"
-fi
 
 app_name="$2"
 
@@ -69,7 +60,6 @@ openssl genrsa -out "$pem_file" 2048
 
 
 if [[ "$devel_mode" -eq 0 ]]; then
-   user_id=ticketweb_"$venv_id"_authsystem
-   chown $user_id:$user_id "$pem_file"
+   chown ticketweb_authsystem:ticketweb_authsystem "$pem_file"
 fi
 

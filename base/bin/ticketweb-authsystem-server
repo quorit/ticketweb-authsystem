@@ -44,14 +44,9 @@ fi
 
 
 
-if [[ "$devel_mode" -eq 0 ]]; then
-    venv_id=$1
-    venv_roots_file=/etc/ticketweb_venv_roots.json
-    ticketweb_venv_root=$(cat "$venv_roots_file" | jq ."$venv_id" | sed -e 's/^"//' -e 's/"$//' )
-else
-    ticketweb_venv_root=$1
-fi
+ticketweb_venv_root="$1"
 
+venv_id=$(systemd-escape --path "$ticketweb_venv_root")
 
 gunicorn_bind=$(cat $ticketweb_venv_root/etc/ticketweb/authsystem/config.json | jq .bind | tr -d '"')
 source "$ticketweb_venv_root/bin/activate"
@@ -60,9 +55,9 @@ if [[ "$devel_mode" -eq 1 ]]; then
      gunicorn --log-level debug --reload --bind $gunicorn_bind ticketweb_authsystem_server.app:main\(\)
 else
      gunicorn --bind $gunicorn_bind \
-         --access-logfile=/var/log/ticketweb/$1/authsystem/server-access.log \
-         --error-logfile=/var/log/ticketweb/$1/authsystem/server-error.log \
-         --pid /run/ticketweb/$1/authsystem/server.pid ticketweb_authsystem_server.app:main\(\)
+         --access-logfile=/var/log/ticketweb/"$venv_id"/authsystem/server-access.log \
+         --error-logfile=/var/log/ticketweb/"$venv_id"/authsystem/server-error.log \
+         --pid /run/ticketweb/"$venv_id"/authsystem/server.pid ticketweb_authsystem_server.app:main\(\)
 fi
 
 

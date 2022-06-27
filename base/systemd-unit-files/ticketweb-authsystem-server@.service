@@ -12,8 +12,8 @@ Type = simple
 # (I wouldn't know)
 
 # the specific user that our service will run as
-User=ticketweb_%i_authsystem
-Group=ticketweb_%i_authsystem
+User=ticketweb_authsystem
+Group=ticketweb_authsystem
 
 
 
@@ -34,7 +34,7 @@ RuntimeDirectory=ticketweb/%i/authsystem
 
 
 
-ExecStart=/usr/local/bin/ticketweb-authsystem-server %i 
+ExecStart=/usr/local/bin/ticketweb-authsystem-server %f
 
 
 

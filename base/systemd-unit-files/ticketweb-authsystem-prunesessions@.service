@@ -13,14 +13,14 @@ Wants=prune-sessions@%i.timer
 
 
 
-User=ticketweb_%i_authsystem
-Group=ticketweb_%i_authsystem
+User=ticketweb_authsystem
+Group=ticketweb_authsystem
 
 
 
 
 Type=oneshot
-ExecStart=/usr/local/libexec/ticketweb-authsystem-prunesessions %i
+ExecStart=/usr/local/libexec/ticketweb-authsystem-prunesessions %f
 
 [Install]
 WantedBy=multi-user.target
