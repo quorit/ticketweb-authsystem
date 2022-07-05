@@ -9,7 +9,7 @@ ticketweb_venv_root=unset
 usage()
 {
   echo "Usage 1: ticketweb-authsystem-server --devel-mode <ticketweb_venv_root>"
-  echo "Usage 2: ticketweb-authsystem-server <ticketweb_venv_id>"
+  echo "Usage 2: ticketweb-authsystem-server <ticketweb_venv_root>"
   exit 2
 }
 
