@@ -2,7 +2,7 @@
 
 #default values
 devel_mode=0
-venv_id=unset
+# venv_id=unset
 ticketweb_venv_root=unset
 
 
@@ -52,7 +52,7 @@ if [ ! -d "$ticketweb_venv_root" ]; then
 fi
 
 cd "$ticketweb_venv_root"
-venv_id=$(systemd-escape --path "$ticketweb_venv_root")
+# venv_id=$(systemd-escape --path "$ticketweb_venv_root")
 
 
 
@@ -64,8 +64,8 @@ mkdir --parents --mode=770 ./etc/ticketweb/authsystem/rsa
 
 if [[ "$devel_mode" -eq 0 ]]; then
    chown ticketweb_authsystem:ticketweb_authsystem ./etc/ticketweb/authsystem/rsa
-   mkdir --parents --mode=770 /var/log/ticketweb/"$venv_id"/authsystem
-   chown ticketweb_authsystem:ticketweb_authsystem /var/log/ticketweb/"$venv_id"/authsystem
+   # mkdir --parents --mode=770 /var/log/ticketweb/"$venv_id"/authsystem
+   # chown ticketweb_authsystem:ticketweb_authsystem /var/log/ticketweb/"$venv_id"/authsystem
 fi
 
 echo '{ "application_set": [] }' > ./etc/ticketweb/authsystem/applications.json
@@ -80,6 +80,8 @@ else
     cd "$git_repo_dir/authsystem/server"
     echo $(pwd)
     pip install --editable .
+
+
 fi
 
 
