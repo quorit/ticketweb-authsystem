@@ -21,13 +21,15 @@ import datetime
 
 
 
-def create_token(secret,user_id, duration):
+def create_token(secret,net_id,real_name,email,duration):
 
      exp_time = int(time.time()) + 60 * duration
      exp_time_english = time.ctime(exp_time)
      print (exp_time_english)
      jwt_payload = {
-         'user_id': user_id,
+         'net_id': net_id,
+         'real_name': real_name,
+         'email': email,
          'exp': exp_time
      }
      headers = {
@@ -80,6 +82,27 @@ class NoSessionCookie(br.BadRequest):
         super().__init__(message,status)
 
 
+
+def _get_user_data(ldap_handle,userid,attributes):
+    search_base=ldap_data["search_base"]
+    try:        
+        ldap_search_result = ldap_handle.search_s(search_base,ldap.SCOPE_SUBTREE,"(sAMAccountName={0})".format(userid),attributes)
+    except ldap.LDAPError as e:
+        raise falcon.HTTPInternalServerError(description="Ldap failure: " + str(e))
+
+    result_attributes = ldap_search_result[0][1]
+    result_dict = {}
+    for attribute in attributes:
+        result_dict[attribute]=result_attributes[attribute][0].decode(encoding='utf-8', errors='strict')
+    user_dn = ldap_search_result[0][0]
+    if not user_dn:
+        raise falcon.HTTPBadRequest(
+            title="User not found in LDAP Search",
+            description="User not found in LDAP Search"
+        )
+    return (user_dn,result_dict)
+
+
 class AuthHandlerSession ():
     def __init__(self,application):
         self.application = application
@@ -88,7 +111,6 @@ class AuthHandlerSession ():
 
     def on_post(self,req,resp):
 
-
         content_len = req.content_length
         if content_len==0:
             raise br.NoContentReceived()
@@ -96,8 +118,12 @@ class AuthHandlerSession ():
             raise br.ContentTooLarge()
         try:
             req_content = json.load(req.stream)
+
         except json.decoder.JSONDecodeError as e:
-            raise br.JSON_ParseFail() from e
+            raise falcon.HTTPBadRequest({
+                "description": "Failed to decode json"
+            })
+        
         user_id = _get_json_string(req_content,"user_id",255)
         re_pattern = r"^[0-9a-z]+$|^ad(\.queensu.ca){0,1}\\[0-9a-z]+$|^[0-9a-z]+@ad\.queensu\.ca$"
         if not re.search(re_pattern,user_id,flags=re.IGNORECASE):
@@ -105,43 +131,57 @@ class AuthHandlerSession ():
         userid = _canonicalise_userid(user_id)
         password = _get_json_string(req_content,"password",255)
         url = ldap_data["url"]
-        ldap_handle  = ldap.initialize(url)
-        service_account_dn = ldap_data["dn"]
-        search_base=ldap_data["search_base"]
 
-        ldap_handle.simple_bind_s(service_account_dn,service_account_pw)
-        ldap_handle.set_option(ldap.OPT_REFERRALS, 0)
-        ldap_search_result = ldap_handle.search_s(search_base,ldap.SCOPE_SUBTREE,"(sAMAccountName={0})".format(userid),["dn"])
-        user_dn = ldap_search_result[0][0]
-        if not user_dn:
-            raise br.UserNotFound(userid)
+        try:
+            ldap_handle  = ldap.initialize(url)
 
+            service_account_dn = ldap_data["dn"]
+            search_base=ldap_data["search_base"]
+
+            ldap_handle.simple_bind_s(service_account_dn,service_account_pw)
+
+            ldap_handle.set_option(ldap.OPT_REFERRALS, 0)
+        except ldap.LDAPError as e:
+            raise falcon.HTTPInternalServerError(description="Ldap failure: " + str(e))
+        (user_dn,user_data) = _get_user_data(ldap_handle,userid,["displayName","mail"])
         try:
              ldap_handle.simple_bind_s(user_dn,password)
              # The success of this tests the user's password
         except ldap.INVALID_CREDENTIALS:
-             raise br.LDAPAuthFail()
+            raise falcon.HTTPUnauthorized()
+        except ldap.LDAPError as e:
+            raise falcon.HTTPInternalServerError(description="Ldap failure: " + str(e))
+        session_data = post_session_data(userid,user_data)
 
-        session_data = post_session_data(user_dn)
-        print(session_data)
         resp.set_cookie(self.application,session_data["session_id"],expires=session_data["expiry"])
         resp.status = falcon.HTTP_CREATED
-
-
    
 
 
     def on_get(self,req,resp):
+        print("HI LISA. BYE LISA. YOU'RE MOVE LISA")
         app_priv_key = rsa_key_data[self.application]["private_key"]
         cookie_vals = req.get_cookie_values(self.application)
         if not cookie_vals:
             raise NoSessionCookie(self.application)
         session_id = cookie_vals[0]
         session_data = renew_session(session_id)
-        user_dn = session_data["user_dn"]
-        resp.text = create_token(app_priv_key,user_dn,15)
+        net_id = session_data["net_id"]
+        real_name = session_data["real_name"]
+        email = session_data["email"]
+        token = create_token(app_priv_key,net_id,real_name,email,15)
         resp.set_cookie(self.application,session_id,expires=session_data["expiry"])
-        resp.content_type = falcon.MEDIA_TEXT
+        response_body = {
+            "jwt_token": token,
+            "user_data": {
+                "net_id": net_id,
+                "real_name": real_name,
+                "email": email
+            }
+
+        }
+        resp.text = json.dumps(response_body)
+        resp.content_type = falcon.MEDIA_JSON
         resp.status = falcon.HTTP_OK
 
     def on_delete(self,req,resp):

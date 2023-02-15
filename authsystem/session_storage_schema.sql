@@ -35,8 +35,11 @@ SET default_table_access_method = heap;
 
 CREATE TABLE session_storage.sessions (
     session_id character varying(100) NOT NULL,
-    user_dn character varying(200) NOT NULL,
-    expired timestamp without time zone NOT NULL
+    expired timestamp without time zone NOT NULL,
+    net_id character varying(200) NOT NULL,
+    real_name character varying(255),
+    email character varying(255) NOT NULL
+
 );
 
 

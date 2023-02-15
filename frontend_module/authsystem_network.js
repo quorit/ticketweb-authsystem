@@ -43,6 +43,7 @@ class ConnectionError extends NetworkError {
 function test_ok(response) {
     return new Promise ((resolve,reject) => {
        if (response.ok){
+         console.log("About to resolve response");
           resolve (response);
        }else{
          console.log("bye son");
@@ -84,15 +85,27 @@ function get_app_token(authsystem_path,app_name){
          authsystem_path,
          app_name)
          .then(response => test_ok(response,true))
-         .then(response => response.text());
-         //response is just an application jwt token and we should have a renewed cookie
+         .then(response => response.json());
+         //response has form
+         // { 
+         //   "jwt_token": <token>,
+         //   "user_data": {
+         //       "net_id": <blah>,
+         //       "real_name": <blah>
+         //       "email": <blah>
+         //    }      
+         //   
+         // }
 }
 
 function login_session(user_id, password,authsystem_path,app_name){
+   
    const body = JSON.stringify({
       user_id: user_id,
       password: password
-   })
+   });
+   console.log(body);
+   console.log("POINT A")
    return extended_fetch(
       {   
          method: "POST",

@@ -68,9 +68,9 @@ def _run_transaction(transaction):
     return result
 
 
-def _post_session_data_lambda(session_key,user_dn,cur):
+def _post_session_data_lambda(session_key,user_id,user_data,cur):
     sql_code = _sql_bank['put_session_data']
-    cur.execute(sql_code,[session_key,user_dn,session_length])
+    cur.execute(sql_code,[session_key,session_length,user_id,user_data["displayName"],user_data["mail"]])
     sql_code = _sql_bank['get_session_expiry']
     cur.execute(sql_code,[session_key])
     thisrow=cur.fetchone()
@@ -78,9 +78,13 @@ def _post_session_data_lambda(session_key,user_dn,cur):
 
 
 
-def post_session_data(user_dn):
+def post_session_data(user_id,user_data):
     session_key = _generate_session_key()
-    expiry = _run_transaction(lambda cur: _post_session_data_lambda(session_key,user_dn,cur))
+    print("FUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUCK")
+    print(session_key)
+    print(user_id)
+    print(user_data)
+    expiry = _run_transaction(lambda cur: _post_session_data_lambda(session_key,user_id,user_data,cur))
     return {
         "session_id": session_key,
         "expiry": expiry
@@ -94,10 +98,13 @@ def _renew_session_lambda(session_id,cur):
     if not thisrow:
         raise SessionNotFound(session_id)
     expiry = thisrow['expired']
-    user_dn = thisrow["user_dn"]
+    net_id = thisrow["net_id"]
+    real_name = thisrow["real_name"]
+    email = thisrow["email"]
+
     if expiry.timestamp() < time.time():
     # expiry is a "datetime" object and we want a standard unic epoch time
-        raise ExpiredSession(session_id)
+        raise falcon.HTTPUnauthorized(description="Session has expired")
     sql_code = _sql_bank['update_session_expiry']
     cur.execute(sql_code,[session_length,session_id])
     sql_code = _sql_bank['get_session_expiry']
@@ -105,8 +112,11 @@ def _renew_session_lambda(session_id,cur):
     thisrow = cur.fetchone()
     expiry = thisrow["expired"]
     return {
-        "user_dn": user_dn,
-        "expiry": expiry
+        "net_id": net_id,
+        "expiry": expiry,
+        "real_name": real_name,
+        "email": email
+
     }
 
 

@@ -1,6 +1,8 @@
 SELECT 
     a.expired,
-    a.user_dn 
+    a.net_id,
+    a.real_name,
+    a.email
 FROM
     sessions AS a
 WHERE
