@@ -51,8 +51,6 @@ if [[ "$devel_mode" -eq 0 ]]; then
        cp "$script_dir"/base/systemd-unit-files/!(*.d) /etc/systemd/system
     '
     shopt -u extglob
-    mkdir --parents /usr/local/share/ticketweb/authsystem
-    cp "$script_dir"/authsystem/session_storage_schema.sql /usr/local/share/ticketweb/authsystem
     useradd --system --no-create-home ticketweb_authsystem
 else
     mkdir --parents "$HOME"/.local/bin
