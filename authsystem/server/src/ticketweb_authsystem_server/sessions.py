@@ -68,9 +68,15 @@ def _run_transaction(transaction):
     return result
 
 
-def _post_session_data_lambda(session_key,user_id,user_data,cur):
+def _post_session_data_lambda(user_data,cur):
     sql_code = _sql_bank['put_session_data']
-    cur.execute(sql_code,[session_key,session_length,user_id,user_data["displayName"],user_data["mail"]])
+    session_key=user_data["jti"]
+    try:
+        cur.execute(sql_code,[session_key,session_length,user_data["sub"],user_data["name"],user_data["email"]])
+    except psycopg2.errors.UniqueViolation as e:
+        raise falcon.HTTPUnauthorized (
+            description="Session already established. JWT token may not be used twice."
+        )
     sql_code = _sql_bank['get_session_expiry']
     cur.execute(sql_code,[session_key])
     thisrow=cur.fetchone()
@@ -78,17 +84,22 @@ def _post_session_data_lambda(session_key,user_id,user_data,cur):
 
 
 
-def post_session_data(user_id,user_data):
-    session_key = _generate_session_key()
-    print("FUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUCK")
-    print(session_key)
-    print(user_id)
-    print(user_data)
-    expiry = _run_transaction(lambda cur: _post_session_data_lambda(session_key,user_id,user_data,cur))
-    return {
-        "session_id": session_key,
-        "expiry": expiry
-    }
+def post_session_data(user_data):
+    expiry = _run_transaction(lambda cur: _post_session_data_lambda(user_data,cur))
+    return expiry
+
+
+def _session_exists_lambda(session_key,cur):
+    sql_code = _sql_bank['session_exists']
+    cur.execute(sql_code,[session_key])
+    thisrow=cur.fetchone()
+    return thisrow['exists'] # the session exists...
+
+
+def session_exists(session_key):
+    expiry = _run_transaction(lambda cur: _session_exists_lambda(session_key,cur))
+    return expiry
+
 
 
 def _renew_session_lambda(session_id,cur):
@@ -125,7 +136,10 @@ def renew_session(session_id):
 
 
 def _delete_session_lambda(session_id,cur):
+    print(session_id + "YEAH")
     sql_code = _sql_bank['delete_session']
+    print(sql_code)
+    print([session_id])
     cur.execute(sql_code,[session_id])
 
 

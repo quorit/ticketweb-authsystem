@@ -72,21 +72,11 @@ def _init_rsa_key_data():
 rsa_key_data = _init_rsa_key_data()
 
 
-
-ldap_data = _config_data["ldap"]
-
 session_length = _config_data["session_length_mins"]
 
-
-def _get_pw():
-    password_exec = _config_data["ldap"]["password_exec"]
-    pw = os.popen(password_exec).read()
-    return pw
+loginportal_pub_key_url = _config_data["loginportal_pub_key_url"]
 
 
-service_account_pw = _get_pw()
-
-print (service_account_pw+"yeah")
 
 def _get_db_conn_string():
     db_conn_string_exec = _config_data["db_conn_string_exec"]

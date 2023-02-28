@@ -70,18 +70,24 @@ function test_ok(response) {
 function extended_fetch(opts,authsystem_path,app_name){
    const url = window.location.origin + authsystem_path + "session/" + app_name;
 
-   return fetch(url,opts).then(response => response,err=> new AuthSystemConnectionError(err.message));
+   return fetch(url,opts).then(response => response,err=> new ConnectionError(err.message));
 }
 
 
 
-function get_app_token(authsystem_path,app_name){
+function get_app_token(authsystem_path,app_name,jwt=null){
+   opts = {   
+      method: "GET",
+      mode: "cors"
+   };
+   if(jwt){
+      opts.headers = new Headers({
+         "Authorization": "Bearer " + jwt
+       });
+   }
    return extended_fetch(
          // should send cookie
-         {   
-            method: "GET",
-            mode: "cors"
-         },
+         opts,
          authsystem_path,
          app_name)
          .then(response => test_ok(response,true))

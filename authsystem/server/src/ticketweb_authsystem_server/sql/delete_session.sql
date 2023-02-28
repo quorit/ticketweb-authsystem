@@ -1,5 +1,5 @@
-DELETE FROM
-    sessions AS a
+UPDATE sessions SET
+    expired = CURRENT_TIMESTAMP
 WHERE
-    a.session_id = %s
+    session_id = %s
 ;

@@ -6,13 +6,13 @@ import time
 import ldap
 import time
 from .config_data import rsa_key_data
-from .config_data import ldap_data
-from .config_data import service_account_pw
+from .config_data import loginportal_pub_key_url
 from .sessions import post_session_data
 from .sessions import renew_session
 from .sessions import delete_session
 from . import bad_request as br
 import datetime
+import requests
 
 
 
@@ -27,8 +27,8 @@ def create_token(secret,net_id,real_name,email,duration):
      exp_time_english = time.ctime(exp_time)
      print (exp_time_english)
      jwt_payload = {
-         'net_id': net_id,
-         'real_name': real_name,
+         'sub': net_id,
+         'name': real_name,
          'email': email,
          'exp': exp_time
      }
@@ -83,105 +83,100 @@ class NoSessionCookie(br.BadRequest):
 
 
 
-def _get_user_data(ldap_handle,userid,attributes):
-    search_base=ldap_data["search_base"]
-    try:        
-        ldap_search_result = ldap_handle.search_s(search_base,ldap.SCOPE_SUBTREE,"(sAMAccountName={0})".format(userid),attributes)
-    except ldap.LDAPError as e:
-        raise falcon.HTTPInternalServerError(description="Ldap failure: " + str(e))
+def _get_user_data(req):
+    receive = requests.get(loginportal_pub_key_url)
+    if receive.status_code != 200:
+        raise Exception("Failed commmunication with login portal")
+    pub_key=receive.text
 
-    result_attributes = ldap_search_result[0][1]
-    result_dict = {}
-    for attribute in attributes:
-        result_dict[attribute]=result_attributes[attribute][0].decode(encoding='utf-8', errors='strict')
-    user_dn = ldap_search_result[0][0]
-    if not user_dn:
-        raise falcon.HTTPBadRequest(
-            title="User not found in LDAP Search",
-            description="User not found in LDAP Search"
+    req_auth_hdr = req.get_header('Authorization')
+    if not req_auth_hdr:
+        raise falcon.HTTPUnauthorized(
+            description="Missing authorization header"
         )
-    return (user_dn,result_dict)
+    if len(req_auth_hdr) > 2048:
+        raise BadRequestHeaderTooBig()
+    re_pattern = r"^Bearer [-a-zA-Z0-9._]+$"
+    if not re.search(re_pattern,req_auth_hdr):
+        raise BadRequestHeaderBadFormatJWT()
+    req_token = req_auth_hdr[len("Bearer "):]
+    try:
+        req_decoded = jwt.decode(
+                req_token,pub_key,
+                algorithms=['RS256'],
+                options={"require": ["sub","name","email","exp","jti"]})
+    except jwt.exceptions.ExpiredSignatureError as e:
+        raise falcon.HTTPUnauthorized(
+            description="JWT token has expired"
+        )
+    except jwt.exceptions.InvalidTokenError as e:
+        raise falcon.HTTPBadRequest(
+            description="Invalid Token Error: " + str(e)
+        )
+    if not isinstance(req_decoded["sub"],str):
+        raise falcon.HTTPBadRequest(
+            description="sub field in jwt data does not have string type"
+        )
+    if not isinstance(req_decoded["name"],str):
+        raise falcon.HTTPBadRequest(
+            description="name field in jwt data does not have string type"
+        )
+    if not isinstance(req_decoded["email"],str):
+        raise falcon.HTTPBadRequest(
+            description="email field in jwt data does not have string type"
+        )
+    if not isinstance(req_decoded["jti"],str):
+        raise falcon.HTTPBadRequest(
+            description="jti field in jwt data does not have string type"
+        )
+    req_decoded.pop("exp")
+    return req_decoded
+
 
 
 class AuthHandlerSession ():
     def __init__(self,application):
         self.application = application
 
-
-
-    def on_post(self,req,resp):
-
-        content_len = req.content_length
-        if content_len==0:
-            raise br.NoContentReceived()
-        if content_len > 1000:
-            raise br.ContentTooLarge()
-        try:
-            req_content = json.load(req.stream)
-
-        except json.decoder.JSONDecodeError as e:
-            raise falcon.HTTPBadRequest({
-                "description": "Failed to decode json"
-            })
-        
-        user_id = _get_json_string(req_content,"user_id",255)
-        re_pattern = r"^[0-9a-z]+$|^ad(\.queensu.ca){0,1}\\[0-9a-z]+$|^[0-9a-z]+@ad\.queensu\.ca$"
-        if not re.search(re_pattern,user_id,flags=re.IGNORECASE):
-             raise br.JSONBadFormatUserId()
-        userid = _canonicalise_userid(user_id)
-        password = _get_json_string(req_content,"password",255)
-        url = ldap_data["url"]
-
-        try:
-            ldap_handle  = ldap.initialize(url)
-
-            service_account_dn = ldap_data["dn"]
-            search_base=ldap_data["search_base"]
-
-            ldap_handle.simple_bind_s(service_account_dn,service_account_pw)
-
-            ldap_handle.set_option(ldap.OPT_REFERRALS, 0)
-        except ldap.LDAPError as e:
-            raise falcon.HTTPInternalServerError(description="Ldap failure: " + str(e))
-        (user_dn,user_data) = _get_user_data(ldap_handle,userid,["displayName","mail"])
-        try:
-             ldap_handle.simple_bind_s(user_dn,password)
-             # The success of this tests the user's password
-        except ldap.INVALID_CREDENTIALS:
-            raise falcon.HTTPUnauthorized()
-        except ldap.LDAPError as e:
-            raise falcon.HTTPInternalServerError(description="Ldap failure: " + str(e))
-        session_data = post_session_data(userid,user_data)
-
-        resp.set_cookie(self.application,session_data["session_id"],expires=session_data["expiry"])
-        resp.status = falcon.HTTP_CREATED
    
 
 
     def on_get(self,req,resp):
-        print("HI LISA. BYE LISA. YOU'RE MOVE LISA")
         app_priv_key = rsa_key_data[self.application]["private_key"]
         cookie_vals = req.get_cookie_values(self.application)
-        if not cookie_vals:
-            raise NoSessionCookie(self.application)
-        session_id = cookie_vals[0]
-        session_data = renew_session(session_id)
-        net_id = session_data["net_id"]
-        real_name = session_data["real_name"]
-        email = session_data["email"]
+        if not cookie_vals or not cookie_vals[0]:
+            print("No cookie")
+            # the first thing to do is to see if there is a jwt token from the login portal
+            #
+            user_data = _get_user_data(req)
+            session_id=user_data["jti"]
+            expiry = post_session_data(user_data)
+            net_id = user_data["sub"]
+            real_name = user_data["name"]
+            email = user_data["email"]
+        else:
+            session_id = cookie_vals[0]
+            print("Cookie"+session_id)
+            session_data = renew_session(session_id)
+            # if the session is not found
+            # or if the session has expired, appropriate errors get thrown.
+            net_id = session_data["net_id"]
+            real_name = session_data["real_name"]
+            email = session_data["email"]
+            expiry = session_data["expiry"]
         token = create_token(app_priv_key,net_id,real_name,email,15)
-        resp.set_cookie(self.application,session_id,expires=session_data["expiry"])
+        resp.set_cookie(self.application,session_id,expires=expiry)
         response_body = {
             "jwt_token": token,
             "user_data": {
-                "net_id": net_id,
-                "real_name": real_name,
-                "email": email
+                    "net_id": net_id,
+                    "real_name": real_name,
+                    "email": email
+                }
             }
-
-        }
         resp.text = json.dumps(response_body)
         resp.content_type = falcon.MEDIA_JSON
+        print("FALCON OK")
         resp.status = falcon.HTTP_OK
 
     def on_delete(self,req,resp):
@@ -189,7 +184,8 @@ class AuthHandlerSession ():
         if cookie_vals:
             session_id = cookie_vals[0]
             delete_session(session_id)
-            resp.set_cookie(self.application,"",expires=datetime.datetime.min)
+            resp.unset_cookie(self.application)
+            # resp.set_cookie(self.application,"",expires=datetime.datetime.min)
             resp.status = falcon.HTTP_NO_CONTENT
         
 
