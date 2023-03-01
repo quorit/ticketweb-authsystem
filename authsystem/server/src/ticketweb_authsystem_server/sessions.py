@@ -1,11 +1,8 @@
 import os
 import psycopg2
-from psycopg2 import sql
 from psycopg2 import extras
-import binascii
 from .config_data import db_conn_string
 from .config_data import session_length
-from . import bad_request as br
 import time
 import falcon
 
@@ -36,24 +33,38 @@ def _init_sql_bank():
 
 _init_sql_bank()
 
-class SessionNotFound(br.BadRequest):
-    def __init__(self, session_id):
-         message = "Session '{0}' does not exist.".format(session_id)
-         status = falcon.HTTP_UNAUTHORIZED # really means "unathenticated" in HTTP-speak
-         super().__init__(message,status)
+
+
+class SessionException(Exception):
+    def __init__(self,application,desc):
+       self.description=desc
+       self.application = application #i.e. reporting or ithelp
+       super().__init__()
+
+    @staticmethod
+    def handle(e, req, resp, params):
+        resp.body=e.description
+        resp.content_type=falcon.MEDIA_TEXT
+        resp.status=falcon.HTTP_UNAUTHORIZED
+        resp.unset_cookie(e.application)
+           
 
 
 
-class ExpiredSession(br.BadRequest):
-    def __init__(self, session_id):
-         message = "Session '{0}' has expired.".format(session_id)
-         status = falcon.HTTP_UNAUTHORIZED # really means "unathenticated" in HTTP-speak
-         super().__init__(message,status)
+
+class SessionNotFound(SessionException):
+    def __init__(self, application, session_id):
+        description = "Session with id {0} has expired".format(session_id)
+        super().__init__(application,description)
 
 
 
-def _generate_session_key():
-    return binascii.b2a_base64(os.urandom(24)).decode().rstrip()
+class ExpiredSession(SessionException):
+    def __init__(self, application, session_id):
+        description="Session with id {0} does not exist in the auth system db.".format(session_id)
+        super().__init__(application,description)
+
+
 
 
 def _run_transaction(transaction):
@@ -89,25 +100,13 @@ def post_session_data(user_data):
     return expiry
 
 
-def _session_exists_lambda(session_key,cur):
-    sql_code = _sql_bank['session_exists']
-    cur.execute(sql_code,[session_key])
-    thisrow=cur.fetchone()
-    return thisrow['exists'] # the session exists...
 
-
-def session_exists(session_key):
-    expiry = _run_transaction(lambda cur: _session_exists_lambda(session_key,cur))
-    return expiry
-
-
-
-def _renew_session_lambda(session_id,cur):
+def _renew_session_lambda(application,session_id,cur):
     sql_code = _sql_bank['get_session_data']
     cur.execute(sql_code,[session_id])
     thisrow = cur.fetchone()
     if not thisrow:
-        raise SessionNotFound(session_id)
+        raise SessionNotFound(application,session_id)
     expiry = thisrow['expired']
     net_id = thisrow["net_id"]
     real_name = thisrow["real_name"]
@@ -115,7 +114,7 @@ def _renew_session_lambda(session_id,cur):
 
     if expiry.timestamp() < time.time():
     # expiry is a "datetime" object and we want a standard unic epoch time
-        raise falcon.HTTPUnauthorized(description="Session has expired")
+        raise ExpiredSession(application,session_id)
     sql_code = _sql_bank['update_session_expiry']
     cur.execute(sql_code,[session_length,session_id])
     sql_code = _sql_bank['get_session_expiry']
@@ -131,8 +130,8 @@ def _renew_session_lambda(session_id,cur):
     }
 
 
-def renew_session(session_id):
-    return _run_transaction(lambda cur: _renew_session_lambda(session_id,cur))
+def renew_session(application,session_id):
+    return _run_transaction(lambda cur: _renew_session_lambda(application,session_id,cur))
 
 
 def _delete_session_lambda(session_id,cur):

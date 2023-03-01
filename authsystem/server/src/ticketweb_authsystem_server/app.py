@@ -2,9 +2,8 @@ import falcon
 
 from .tokens import AuthHandlerSession
 from .tokens import PubKeyHandler
-from .bad_request import BadRequest
 from .config_data import applications
-
+from .sessions import SessionException
 
 
 
@@ -13,5 +12,5 @@ def main():
    for app in applications:
       api.add_route('/session/' + app, AuthHandlerSession(app))
       api.add_route('/pubkeys/' + app, PubKeyHandler(app))
-   api.add_error_handler(BadRequest) 
+      api.add_error_handler(SessionException)
    return api
