@@ -76,7 +76,7 @@ function extended_fetch(opts,authsystem_path,app_name){
 
 
 function get_app_token(authsystem_path,app_name,jwt=null){
-   opts = {   
+   var opts = {   
       method: "GET",
       mode: "cors"
    };
