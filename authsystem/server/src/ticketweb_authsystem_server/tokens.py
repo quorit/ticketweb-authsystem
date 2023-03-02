@@ -51,10 +51,12 @@ def _get_user_data(req):
             description="Missing authorization header"
         )
     if len(req_auth_hdr) > 2048:
-        raise falcon.HTTPRequestHeaderFieldsTooLarge()
+        raise falcon.HTTPUnauthorized(
+            description="'Authorization' header is too long."
+        )
     re_pattern = r"^Bearer [-a-zA-Z0-9._]+$"
     if not re.search(re_pattern,req_auth_hdr):
-        raise falcon.HTTPBadRequest(
+        raise falcon.HTTPUnauthorized(
             description="'Authorization' header does not have format, 'Bearer <jwt token>'"
         )
     req_token = req_auth_hdr[len("Bearer "):]
