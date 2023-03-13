@@ -68,7 +68,13 @@ if [[ "$devel_mode" -eq 0 ]]; then
    # chown ticketweb_authsystem:ticketweb_authsystem /var/log/ticketweb/"$venv_id"/authsystem
 fi
 
-echo '{ "application_set": [] }' > ./etc/ticketweb/authsystem/applications.json
+
+if [[ ! -e ./etc/ticketweb/authsystem/applications.json ]]; then
+   echo '{ "application_set": [] }' > ./etc/ticketweb/authsystem/applications.json
+else
+   >&2 echo "Did not create 'applications.json' because file already exists."
+fi
+
 
 source ./bin/activate
 
