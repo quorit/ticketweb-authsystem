@@ -1,6 +1,10 @@
 #!/bin/bash
 
 
+
+printf '%q ' "$0" "$@"
+echo ""
+
 ticketweb_venv_root=$1
 
 

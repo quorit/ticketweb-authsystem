@@ -5,11 +5,12 @@ import re
 import time
 import time
 from .config_data import rsa_key_data
-from .config_data import loginportal_pub_key_url
+from .config_data import login_portal_data
 from .sessions import post_session_data
 from .sessions import renew_session
 from .sessions import delete_session
 import requests
+from jwt import PyJWKClient
 
 
 
@@ -37,19 +38,51 @@ def create_token(secret,net_id,real_name,email,duration):
      return jwt_token
 
 
+def get_ms_signing_key(token, tenant_id):
+    # 1. The URL where Microsoft publishes their current public keys
+    jwks_url = f"https://login.microsoftonline.com/{tenant_id}/discovery/v2.0/keys"
+    
+    # 2. Initialize the JWK Client
+    jwks_client = PyJWKClient(jwks_url)
+    
+    # 3. This function:
+    #    - Extracts the 'kid' from your token's header
+    #    - Fetches the keys from the URL
+    #    - Finds the matching key and returns a 'signing_key' object
+    signing_key = jwks_client.get_signing_key_from_jwt(token)
+    
+    return signing_key
+
+
+
+def _get_signing_key(req_token,issuer_portal):
+    login_portal_instance_data = login_portal_data[issuer_portal] 
+    if issuer_portal == "ticketweb":
+        loginportal_pub_key_url = login_portal_instance_data["signing_key_url"]
+        receive = requests.get(loginportal_pub_key_url)
+        signing_key = receive.text
+        if receive.status_code != 200:
+            raise Exception("Failed commmunication with login portal")
+        return signing_key
+    else: # microsoft
+        tenant_id = login_portal_instance_data["tenant_id"]
+        signing_key = get_ms_signing_key(req_token,tenant_id)
+        return signing_key
+
+
+
+
 
 
 def _get_user_data(req):
-    receive = requests.get(loginportal_pub_key_url)
-    if receive.status_code != 200:
-        raise Exception("Failed commmunication with login portal")
-    pub_key=receive.text
-
+   
+    
     req_auth_hdr = req.get_header('Authorization')
     if not req_auth_hdr:
         raise falcon.HTTPUnauthorized(
             description="Missing authorization header"
         )
+    print(req_auth_hdr)
     if len(req_auth_hdr) > 2048:
         raise falcon.HTTPUnauthorized(
             description="'Authorization' header is too long."
@@ -60,11 +93,26 @@ def _get_user_data(req):
             description="'Authorization' header does not have format, 'Bearer <jwt token>'"
         )
     req_token = req_auth_hdr[len("Bearer "):]
+
+    req_token_fields = jwt.decode(req_token, options={"verify_signature": False})
+    print (req_token_fields)
+    if req_token_fields["iss"] != "ticketweb_portal":
+        issuer_portal = "microsoft"
+    else:
+        issuer_portal = "ticketweb"
+    signing_key = _get_signing_key(req_token,issuer_portal)
+    if issuer_portal == "ticketweb":
+        jwt_audience = "ticketweb_auth_server"
+    else: # microsoft portal
+        jwt_audience = login_portal_data["microsoft"]["client_id"]
+
     try:
         req_decoded = jwt.decode(
-                req_token,pub_key,
+                req_token,signing_key,
                 algorithms=['RS256'],
-                options={"require": ["sub","name","email","exp","jti"]})
+                options={"require": ["upn","name","email","exp","uti"]},
+                audience=jwt_audience)
+        print(req_decoded)
     except jwt.exceptions.ExpiredSignatureError as e:
         raise falcon.HTTPUnauthorized(
             description="JWT token has expired"
@@ -73,7 +121,7 @@ def _get_user_data(req):
         raise falcon.HTTPUnauthorized(
             description="Invalid Token Error: " + str(e)
         )
-    if not isinstance(req_decoded["sub"],str):
+    if not isinstance(req_decoded["upn"],str):
         raise falcon.HTTPBadRequest(
             description="sub field in jwt data does not have string type"
         )
@@ -85,9 +133,9 @@ def _get_user_data(req):
         raise falcon.HTTPBadRequest(
             description="email field in jwt data does not have string type"
         )
-    if not isinstance(req_decoded["jti"],str):
+    if not isinstance(req_decoded["uti"],str):
         raise falcon.HTTPBadRequest(
-            description="jti field in jwt data does not have string type"
+            description="uti field in jwt data does not have string type"
         )
     req_decoded.pop("exp")
     return req_decoded
@@ -105,13 +153,12 @@ class AuthHandlerSession ():
         app_priv_key = rsa_key_data[self.application]["private_key"]
         cookie_vals = req.get_cookie_values(self.application)
         if not cookie_vals or not cookie_vals[0]:
-            print("No cookie")
             # the first thing to do is to see if there is a jwt token from the login portal
             #
             user_data = _get_user_data(req)
-            session_id=user_data["jti"]
+            session_id=user_data["uti"]
             expiry = post_session_data(user_data)
-            net_id = user_data["sub"]
+            net_id = user_data["upn"].partition('@')[0]
             real_name = user_data["name"]
             email = user_data["email"]
         else:
@@ -137,7 +184,6 @@ class AuthHandlerSession ():
             }
         resp.text = json.dumps(response_body)
         resp.content_type = falcon.MEDIA_JSON
-        print("FALCON OK")
         resp.status = falcon.HTTP_OK
 
     def on_delete(self,req,resp):

@@ -1,5 +1,6 @@
 import os
 import json
+import pyjson5
 import sys
 from cryptography.hazmat.primitives import serialization
 
@@ -15,9 +16,9 @@ else:
 
 
 def _get_config_data():
-    config_file = os.path.join(_etc_path,"ticketweb","authsystem","config.json")
+    config_file = os.path.join(_etc_path,"ticketweb","authsystem","config.json5")
     f = open(config_file,"r")
-    config_data = json.load(f)
+    config_data = pyjson5.load(f)
     f.close()
     return config_data
 
@@ -69,13 +70,15 @@ def _init_rsa_key_data():
 
 
 
+
+
 rsa_key_data = _init_rsa_key_data()
 
 
 session_length = _config_data["session_length_mins"]
 
-loginportal_pub_key_url = _config_data["loginportal_pub_key_url"]
 
+login_portal_data = _config_data["login_portals"]
 
 
 def _get_db_conn_string():

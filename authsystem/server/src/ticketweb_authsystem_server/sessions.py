@@ -81,9 +81,9 @@ def _run_transaction(transaction):
 
 def _post_session_data_lambda(user_data,cur):
     sql_code = _sql_bank['put_session_data']
-    session_key=user_data["jti"]
+    session_key=user_data["uti"]
     try:
-        cur.execute(sql_code,[session_key,session_length,user_data["sub"],user_data["name"],user_data["email"]])
+        cur.execute(sql_code,[session_key,session_length,user_data["upn"],user_data["name"],user_data["email"]])
     except psycopg2.errors.UniqueViolation as e:
         raise falcon.HTTPUnauthorized (
             description="Session already established. JWT token may not be used twice."
@@ -92,6 +92,7 @@ def _post_session_data_lambda(user_data,cur):
     cur.execute(sql_code,[session_key])
     thisrow=cur.fetchone()
     return thisrow['expired'] # the expiry
+
 
 
 

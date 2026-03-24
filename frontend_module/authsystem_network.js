@@ -1,4 +1,5 @@
-
+const devel_mode = process.env.NODE_ENV === 'development';
+// devel_mode = false; //only because I am testing the queen's web portal.
 
 class NetworkError extends Error {
    constructor(message) {
@@ -69,20 +70,30 @@ function test_ok(response) {
 
 function extended_fetch(opts,authsystem_path,app_name){
    const url = window.location.origin + authsystem_path + "session/" + app_name;
-
-   return fetch(url,opts).then(response => response,err=> new ConnectionError(err.message));
+   console.log ("sorry natalie 2");
+   console.log(url);
+   const result = fetch(url,opts).then(response => response,err=> new ConnectionError(err.message));
+   console.log ("sorry natalie 3");
+   console.log(url);
+   console.log(opts);
+   console.log (result);
+   return result;
 }
 
 
 
-function get_app_token(authsystem_path,app_name,jwt=null){
+function get_app_token(authsystem_path,app_name,auth_token=null){
+
+   //The auth token is a jwt token, either from our own devel portal, or from the ms portal
+   //It's used to set up a session, if we don't already have one.
    var opts = {   
       method: "GET",
       mode: "cors"
-   };
-   if(jwt){
+   }
+
+   if(auth_token){
       opts.headers = new Headers({
-         "Authorization": "Bearer " + jwt
+         "Authorization": "Bearer " + auth_token
        });
    }
    return extended_fetch(
@@ -104,28 +115,47 @@ function get_app_token(authsystem_path,app_name,jwt=null){
          // }
 }
 
-function login_session(user_id, password,authsystem_path,app_name){
-   
-   const body = JSON.stringify({
-      user_id: user_id,
-      password: password
-   });
-   console.log(body);
-   console.log("POINT A")
-   return extended_fetch(
-      {   
-         method: "POST",
-         mode: "cors",
-         body: body
-      },
-      authsystem_path,
-      app_name)
-      .then(response => test_ok(response))
-      // eslint-disable-next-line no-unused-vars
-      .then(response => true);
-      //although there is no response body, we do get a cookie as part of the response
-}
 
+
+async function getIdToken_ms (code,  redirect_uri,client_id, tenant_id,verifier) {
+  // 1. Retrieve the verifier
+
+  // 2. Prepare the parameters for the POST body
+  // Note: These must be URL-encoded, not JSON
+
+
+  const params = new URLSearchParams();
+  params.append('client_id', client_id);
+  params.append('grant_type', 'authorization_code');
+  params.append('code', code);
+  params.append('redirect_uri', redirect_uri);
+  params.append('code_verifier', verifier);
+
+  try {
+    const fetch_url = `https://login.microsoftonline.com/${tenant_id}/oauth2/v2.0/token`
+    const response = await fetch(fetch_url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: params
+    });
+
+    const data = await response.json();
+
+    if (data.id_token) {
+      // SUCCESS!
+      console.log("Tokens received:", data);
+      
+      
+      return data.id_token;
+    } else {
+      console.error("Token error:", data.error_description);
+    }
+  } catch (error) {
+    console.error("Network error during token exchange:", error);
+  }
+}
 
 
 
@@ -145,10 +175,15 @@ function delete_session(authsystem_path,app_name){
 
 
 
-module.exports = {get_app_token, login_session, delete_session,
+
+
+module.exports = {get_app_token, 
+        // login_session, 
+        delete_session,
         SessionAuthenticationError, 
         ConnectionError,
         HTTPResponseError,
-        NetworkError
+        NetworkError,
+        getIdToken_ms
       
       }
