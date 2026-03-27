@@ -71,7 +71,17 @@ def _get_signing_key(req_token,issuer_portal):
 
 
 
-
+def _get_token_issuer(req_token):
+    req_token_fields = jwt.decode(req_token, options={"verify_signature": False})
+    ms_tenant_id = login_portal_data.get("microsoft",{}).get("tenant_id") 
+    if ms_tenant_id and req_token_fields["iss"] == f"https://login.microsoftonline.com/{ms_tenant_id}/v2.0":
+        return "microsoft"
+    elif req_token_fields["iss"] == "ticketweb_portal":
+        return "ticketweb"
+    else:
+        raise falcon.HTTPUnauthorized(
+            description="Invalid token issuer"
+        )
 
 
 def _get_user_data(req):
@@ -94,12 +104,8 @@ def _get_user_data(req):
         )
     req_token = req_auth_hdr[len("Bearer "):]
 
-    req_token_fields = jwt.decode(req_token, options={"verify_signature": False})
-    print (req_token_fields)
-    if req_token_fields["iss"] != "ticketweb_portal":
-        issuer_portal = "microsoft"
-    else:
-        issuer_portal = "ticketweb"
+    issuer_portal = _get_token_issuer(req_token)
+
     signing_key = _get_signing_key(req_token,issuer_portal)
     if issuer_portal == "ticketweb":
         jwt_audience = "ticketweb_auth_server"
